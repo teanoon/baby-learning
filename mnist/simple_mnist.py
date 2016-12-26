@@ -161,7 +161,7 @@ def run():
         session = tf.Session()
 
         # initial variables
-        init = tf.initialize_all_variables()
+        init = tf.global_variables_initializer()
         session.run(init)
 
         # start training loop
