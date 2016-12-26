@@ -1,0 +1,28 @@
+version: '2'
+services:
+  data:
+    container_name: tensorflow-data
+    image: debian:jessie
+    command: 'chown 1000:1000 /code -R'
+    volumes:
+      - code-volume:/code
+  app:
+    container_name: tensorflow-app
+    # image: tensorflow/tensorflow:0.11.0
+    build: app
+    environment:
+      DISPLAY: 192.168.56.1:0.0
+    volumes:
+      - ~/.ssh:/home/dev/.ssh
+      - ~/.gitconfig:/home/dev/.gitconfig
+      - /boxes/pycharm:/home/dev/pycharm
+      - /boxes/.PyCharmCE2016.3:/home/dev/.PyCharmCE2016.3
+      - /boxes/.PyCharmCE.java:/home/dev/.java
+      - .:/code/baby-learning/docker
+    volumes_from:
+      - data
+    ports:
+      - 8888:8888
+volumes:
+  code-volume:
+    driver: local
