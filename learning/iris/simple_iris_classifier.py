@@ -1,4 +1,3 @@
-import tensorflow as tf
 import tensorflow.contrib.layers as layers
 import tensorflow.contrib.learn.python.learn.datasets as datasets
 import tensorflow.contrib.learn.python.learn.estimators as estimators
