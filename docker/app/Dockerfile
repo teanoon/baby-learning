@@ -14,6 +14,8 @@ RUN echo "deb http://packages.linuxmint.com debian import" | tee /etc/apt/source
     dbus libxtst6 && dbus-uuidgen > /etc/machine-id && \
     apt-get clean
 
+RUN pip install pandas
+
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 
