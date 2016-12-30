@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:0.12.0-py3
+FROM tensorflow/tensorflow:0.12.1-py3
 
 RUN echo "deb http://packages.linuxmint.com debian import" | tee /etc/apt/sources.list.d/firefox.list && \
     apt-get update && apt-get install -y --force-yes --no-install-recommends \
