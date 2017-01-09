@@ -1,17 +1,52 @@
-# Import data
 from tensorflow.examples.tutorials.mnist import input_data
+from tensorflow.python.summary import summary
+import tensorflow
 
 import math
 import time
 
-import tensorflow as tf
-
+LOG_DIR = '/tmp/simple_mnist_logs'
 
 NUM_CLASSES = 10
 BATCH_SIZE = 100
 # TODO dynamically read from mnist data set
 MNIST_IMAGE_SIZE = 28 * 28
 MAX_STEPS = 2000
+
+
+# TODO declare type info
+def variable_summaries(var):
+    """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+    with tensorflow.name_scope('summaries'):
+        mean = tensorflow.reduce_mean(var)
+        summary.scalar('mean', mean)
+        # TODO why within named scope?
+        with tensorflow.name_scope('stddev'):
+            stddev = tensorflow.sqrt(tensorflow.reduce_mean(tensorflow.square(var - mean)))
+        summary.scalar('stddev', stddev)
+        summary.scalar('max', tensorflow.reduce_max(var))
+        summary.scalar('min', tensorflow.reduce_min(var))
+        summary.histogram('histogram', var)
+
+
+def layer(name, current_layer, current_layer_units, next_layer_units, activate=tensorflow.nn.relu):
+    with tensorflow.name_scope(name):
+        with tensorflow.name_scope('weights'):
+            weights = tensorflow.Variable(
+                tensorflow.truncated_normal(
+                    [current_layer_units, next_layer_units], stddev=1.0 / math.sqrt(current_layer_units)),
+                name="weights")
+            variable_summaries(weights)
+        with tensorflow.name_scope('biases'):
+            biases = tensorflow.Variable(
+                tensorflow.zeros([next_layer_units]),
+                name='biases')
+            variable_summaries(biases)
+
+        activations = activate(tensorflow.matmul(current_layer, weights) + biases)
+        summary.histogram('activations', activations)
+
+    return activations
 
 
 def inference(images, hidden1_units=128, hidden2_units=32):
@@ -23,37 +58,9 @@ def inference(images, hidden1_units=128, hidden2_units=32):
     Returns:
       softmax_linear: Output tensor with the computed logits.
     """
-    with tf.name_scope('hidden1'):
-        weights = tf.Variable(
-            tf.truncated_normal([MNIST_IMAGE_SIZE, hidden1_units], stddev=1.0 / math.sqrt(MNIST_IMAGE_SIZE)),
-            name="weights")
-        biases = tf.Variable(
-            tf.zeros([hidden1_units]),
-            name='biases')
-
-        hidden1 = tf.nn.relu(tf.matmul(images, weights) + biases)
-
-    with tf.name_scope('hidden2'):
-        weights = tf.Variable(
-            tf.truncated_normal([hidden1_units, hidden2_units], stddev=1.0 / math.sqrt(hidden1_units)),
-            name="weights")
-        biases = tf.Variable(
-            tf.zeros([hidden2_units]),
-            name="biases")
-
-        hidden2 = tf.nn.relu(tf.matmul(hidden1, weights) + biases)
-
-    with tf.name_scope('softmax_linear'):
-        weights = tf.Variable(
-            tf.truncated_normal([hidden2_units, NUM_CLASSES], stddev=1.0 / math.sqrt(hidden2_units)),
-            name="weights")
-        biases = tf.Variable(
-            tf.zeros([NUM_CLASSES]),
-            name="biases")
-
-        logits = tf.matmul(hidden2, weights) + biases
-
-    return logits
+    hidden1 = layer('hidden1', images, MNIST_IMAGE_SIZE, hidden1_units)
+    hidden2 = layer('hidden2', hidden1, hidden1_units, hidden2_units)
+    return layer('softmax_linear', hidden2, hidden2_units, NUM_CLASSES, activate=tensorflow.identity)
 
 
 def calculate_loss(logits, labels):
@@ -64,16 +71,16 @@ def calculate_loss(logits, labels):
     Returns:
       loss: Loss tensor of type float.
     """
-    labels = tf.to_int64(labels)
-    cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, labels, name="x_entropy")
-    return tf.reduce_mean(cross_entropy, name="x_entropy_mean")
+    labels = tensorflow.to_int64(labels)
+    cross_entropy = tensorflow.nn.sparse_softmax_cross_entropy_with_logits(logits, labels, name="x_entropy")
+    return tensorflow.reduce_mean(cross_entropy, name="x_entropy_mean")
 
 
 def training(loss, learning_rate):
     # Create the gradient descent optimizer with the given learning rate.
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+    optimizer = tensorflow.train.GradientDescentOptimizer(learning_rate)
     # Create a variable to track the global step.
-    global_step = tf.Variable(0, name='global_step', trainable=False)
+    global_step = tensorflow.Variable(0, name='global_step', trainable=False)
     # Use the optimizer to apply the gradients that minimize the loss
     # (and also increment the global step counter) as a single training step.
     return optimizer.minimize(loss, global_step=global_step)
@@ -91,9 +98,11 @@ def evaluation(logits, labels):
     # It returns a bool tensor with shape [batch_size] that is true for
     # the examples where the label is in the top k (here k=1)
     # of all logits for that example.
-    correct = tf.nn.in_top_k(logits, labels, 1)
+    correct = tensorflow.nn.in_top_k(logits, labels, 1)
     # Return the number of true entries.
-    return tf.reduce_sum(tf.cast(correct, tf.int32))
+    accuracy = tensorflow.reduce_sum(tensorflow.cast(correct, tensorflow.int32))
+    summary.scalar('accuracy', accuracy)
+    return accuracy
 
 
 def do_evaluate(session, eval_correct, images_placeholder, labels_placeholder, data_set):
@@ -140,13 +149,13 @@ def fill_feed_dict(data_set, images_placeholder, labels_placeholder):
 def run():
     data_set = input_data.read_data_sets("resources")
 
-    with tf.Graph().as_default():
-        images_placeholder = tf.placeholder(tf.float32, shape=(BATCH_SIZE, MNIST_IMAGE_SIZE))
-        labels_placeholder = tf.placeholder(tf.int32, shape=BATCH_SIZE)
+    images_placeholder = tensorflow.placeholder(tensorflow.float32, shape=(BATCH_SIZE, MNIST_IMAGE_SIZE))
+    labels_placeholder = tensorflow.placeholder(tensorflow.int32, shape=BATCH_SIZE)
 
-        # Build a Graph that computes predictions from the inference model.
-        logits = inference(images_placeholder, hidden1_units=128, hidden2_units=32)
+    # Build a Graph that computes predictions from the inference model.
+    logits = inference(images_placeholder, hidden1_units=128, hidden2_units=32)
 
+    with tensorflow.name_scope('GradientDescent'):
         # Add to the Graph the Ops for loss calculation.
         loss = calculate_loss(logits, labels_placeholder)
 
@@ -156,35 +165,56 @@ def run():
         # Add to the Graph the Ops that calculate and apply gradients.
         train_op = training(loss, learning_rate=0.01)
 
-        # setup complete
-        # create a session to execute those calculations
-        session = tf.Session()
+    # setup complete
+    # create a session to execute those calculations
+    session = tensorflow.Session()
 
-        # initial variables
-        init = tf.global_variables_initializer()
-        session.run(init)
+    # Merge all the summaries and write them out to /tmp/train
+    merged = summary.merge_all()
+    train_writer = summary.FileWriter('%s/train' % LOG_DIR, session.graph)
+    test_writer = summary.FileWriter('%s/test' % LOG_DIR)
 
-        # start training loop
-        start_at = time.time()
-        for step in range(MAX_STEPS):
-            # TODO why
-            # Fill a feed dictionary with the actual set of images and labels
-            # for this particular training step.
-            feed_dict = fill_feed_dict(data_set.train, images_placeholder, labels_placeholder)
+    # initial variables
+    init = tensorflow.global_variables_initializer()
+    session.run(init)
 
-            # originally we only need train_op per loop
-            # we also want to observe loss for logging
-            _, loss_value = session.run([train_op, loss], feed_dict=feed_dict)
+    # start training loop
+    start_at = time.time()
+    for step in range(MAX_STEPS):
+        # TODO why
+        # Fill a feed dictionary with the actual set of images and labels
+        # for this particular training step.
+        feed_dict = fill_feed_dict(data_set.train, images_placeholder, labels_placeholder)
+        test_feed_dict = fill_feed_dict(data_set.test, images_placeholder, labels_placeholder)
 
-            if step % 100 == 0:
-                passed = time.time() - start_at
-                start_at = time.time()
-                print('Step %d: loss = %f (%f sec)' % (step, loss_value, passed))
+        # originally we only need train_op per loop
+        # we also want to observe loss for logging
+        if step % 100 == 0:
+            run_options = tensorflow.RunOptions(trace_level=tensorflow.RunOptions.FULL_TRACE)
+            run_metadata = tensorflow.RunMetadata()
+            log, _ = session.run(
+                [merged, train_op],
+                feed_dict=feed_dict,
+                options=run_options,
+                run_metadata=run_metadata)
+            train_writer.add_run_metadata(run_metadata, 'step%d' % step)
+        else:
+            log, _ = session.run([merged, train_op], feed_dict=feed_dict)
+        train_writer.add_summary(log, step)
 
-            if step + 1 == MAX_STEPS:
-                do_evaluate(session, eval_correct, images_placeholder, labels_placeholder, data_set.train)
-                do_evaluate(session, eval_correct, images_placeholder, labels_placeholder, data_set.test)
-                do_evaluate(session, eval_correct, images_placeholder, labels_placeholder, data_set.validation)
+        if step % 100 == 0 or step + 1 == MAX_STEPS:
+            log, loss_value = session.run([merged, loss], feed_dict=test_feed_dict)
+            test_writer.add_summary(log, step)
+            passed = time.time() - start_at
+            start_at = time.time()
+            print('Step %d: loss = %f (%f sec)' % (step, loss_value, passed))
 
+        if step + 1 == MAX_STEPS:
+            do_evaluate(session, eval_correct, images_placeholder, labels_placeholder, data_set.train)
+            do_evaluate(session, eval_correct, images_placeholder, labels_placeholder, data_set.test)
+            do_evaluate(session, eval_correct, images_placeholder, labels_placeholder, data_set.validation)
+
+    train_writer.close()
+    test_writer.close()
 
 run()
