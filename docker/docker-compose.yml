@@ -19,6 +19,7 @@ services:
       - /boxes/.PyCharmCE2016.3:/home/dev/.PyCharmCE2016.3
       - /boxes/.PyCharmCE.java:/home/dev/.java
       - .:/code/baby-learning/docker
+      - .zsh_history:/home/dev/.zsh_history
     volumes_from:
       - data
     ports:
