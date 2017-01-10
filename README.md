@@ -13,4 +13,4 @@
     * rails/flask api backend
     * Wechat app as the client
 4. Enable GPU computing.
-5. Log, monitor, visualize and distribute.
+5. ~~Log~~, ~~monitor~~, ~~visualize~~, embedding and distribute.
