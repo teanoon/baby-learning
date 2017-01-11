@@ -1,2 +1,4 @@
 .idea/
+learning/resources/*
+!.keep
 .zsh_history
