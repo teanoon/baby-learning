@@ -5,7 +5,7 @@
 ## Steps:
 0. ~~Mnist sample~~
 1. Learn more modeling.
-    * Graphic recognition
+    * ~~Graphic recognition~~
     * Data mining
 2. Learn complex algorithm.
     * improve recognition success rate of this "hello world" example from 91.% to 99.9% up.

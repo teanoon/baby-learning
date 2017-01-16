@@ -1,5 +1,6 @@
 .idea/
 __pycache__/
 learning/resources/*
+learning/playground.py
 !.keep
 .zsh_history
