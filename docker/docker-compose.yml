@@ -11,7 +11,7 @@ services:
     # image: tensorflow/tensorflow:0.11.0
     build: app
     environment:
-      DISPLAY: 192.168.56.1:0.0
+      DISPLAY: $DISPLAY
     volumes:
       - ~/.ssh:/home/dev/.ssh
       - ~/.gitconfig:/home/dev/.gitconfig
@@ -20,6 +20,7 @@ services:
       - /boxes/.PyCharmCE.java:/home/dev/.java
       - .:/code/baby-learning/docker
       - .zsh_history:/home/dev/.zsh_history
+      - /tmp/.X11-unix:/tmp/.X11-unix
     volumes_from:
       - data
     ports:
