@@ -1,27 +1,24 @@
 import tensorflow
-from numpy import array
-from tensorflow.examples.tutorials.mnist import input_data
 from tensorflow.python.framework import dtypes
-from tensorflow.python.training import learning_rate_decay
-from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import math_ops
+from tensorflow.python.training import learning_rate_decay
 
 # Global constants describing the CIFAR-10 data set.
 NUM_CLASSES = 10
 BATCH_SIZE = 100
 # TODO dynamically read from mnist data set
 IMAGE_SIZE = 28 * 28
-MAX_STEPS = 2000
+MAX_STEPS = 1000
 
 # Constants describing the training process.
 MOVING_AVERAGE_DECAY = 0.9999  # The decay to use for the moving average.
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 50000
-D_TYPE = dtypes.float16
+D_TYPE = dtypes.float32
 
 # If a model is trained with multiple GPUs, prefix all Op names with tower_name
 # to differentiate the operations. Note that this prefix is removed from the
 # names of the summaries when visualizing a model.
-TOWER_NAME = 'tower'
+# TOWER_NAME = 'tower'
 
 
 # helpers
@@ -38,9 +35,8 @@ def activation_summary(x):
     """
     # Remove 'tower_[0-9]/' from the name in case this is a multi-GPU training
     # session. This helps the clarity of presentation on tensorboard.
-    tensor_name = tensorflow.re.sub('%s_[0-9]*/' % TOWER_NAME, '', x.op.name)
-    tensorflow.summary.histogram(tensor_name + '/activations', x)
-    tensorflow.summary.scalar(tensor_name + '/sparsity', tensorflow.nn.zero_fraction(x))
+    tensorflow.summary.histogram(x.op.name + '/activations', x)
+    tensorflow.summary.scalar(x.op.name + '/sparsity', tensorflow.nn.zero_fraction(x))
 
 
 def create_variable(name, shape, initializer):
@@ -85,32 +81,19 @@ def create_variable_with_weight_decay(name, shape, stddev, wd):
     return var
 
 
-# input
-# read data set and divide them into train/test/eval 3 groups
-# train group should go through data augmentation
-# TODO w/o streaming
-def input_with_type(data_set_type, file_path='resources'):
-    """Get mnist data use tensorflow mnist
-    """
-    if data_set_type not in ['train', 'test', 'validation']:
-        raise ValueError('Failed to find proper type in: train, test, validation')
-    data = input_data.read_data_sets(file_path)
-    return getattr(data, data_set_type)
-
-
 # inference - build model
 # layers are consist of convolution layer with ReLu activation and max pooling
 # each convolution layer should use different kernel
-def common_layer(name, images, weight_shape, conv_func, linear_func, activation_func):
+def common_layer(name, images, weight_shape, stddev, wd, initial_constant, conv_func, linear_func, activation_func):
     with tensorflow.variable_scope(name) as scope:
         weights = create_variable_with_weight_decay(
-            'weights', shape=weight_shape, stddev=0.05, wd=0.0)
+            'weights', shape=weight_shape, stddev=stddev, wd=wd)
         biases = create_variable(
-            'biases', weight_shape[-1:], tensorflow.constant_initializer(0.0))
+            'biases', weight_shape[-1:], tensorflow.constant_initializer(initial_constant))
         weighted = conv_func(images, weights)
         pre_activation = linear_func(weighted, biases)
         activation = activation_func(pre_activation, name=scope.name)
-        # activation_summary(activation)
+        activation_summary(activation)
 
     return activation
 
@@ -131,12 +114,16 @@ def normalize(name, pooling):
 
 def inference(images):
     # 1st hidden layer
-    conv1 = common_layer('convolution-1', images, [5, 5, 1, 32], conv2d, tensorflow.nn.bias_add, tensorflow.nn.relu)
+    conv1 = common_layer(
+        'convolution-1', images, [5, 5, 1, 32], 5e-2, 0.0, 0.0,
+        conv2d, tensorflow.nn.bias_add, tensorflow.nn.relu)
     pool1 = pool('pool-1', conv1)
     norm1 = normalize('norm-1', pool1)
 
     # 2st hidden layer
-    conv2 = common_layer('convolution-2', norm1, [5, 5, 32, 32], conv2d, tensorflow.nn.bias_add, tensorflow.nn.relu)
+    conv2 = common_layer(
+        'convolution-2', norm1, [5, 5, 32, 32], 5e-2, 0.0, 0.1,
+        conv2d, tensorflow.nn.bias_add, tensorflow.nn.relu)
     # TODO why change order?
     norm2 = normalize('norm-2', conv2)
     pool2 = pool('pool-2', norm2)
@@ -144,16 +131,21 @@ def inference(images):
     # TODO why these two layers?
     # 3rd hidden layer
     # Move everything into depth so we can perform a single matrix multiply.
-    reshape = tensorflow.reshape(pool2, [pool2.get_shape()[0].value, -1])
+    reshape = tensorflow.reshape(pool2, [BATCH_SIZE, -1])
     dim = reshape.get_shape()[1].value
-    local3 = common_layer('local3', reshape, [dim, 384], tensorflow.matmul, tensorflow.add, tensorflow.nn.relu)
+    local3 = common_layer(
+        'local3', reshape, [dim, 384], 0.04, 0.004, 0.1,
+        tensorflow.matmul, tensorflow.add, tensorflow.nn.relu)
 
     # 4th hidden layer
-    local4 = common_layer('local4', local3, [384, 192], tensorflow.matmul, tensorflow.add, tensorflow.nn.relu)
+    local4 = common_layer(
+        'local4', local3, [384, 192], 0.04, 0.004, 0.1,
+        tensorflow.matmul, tensorflow.add, tensorflow.nn.relu)
 
     # 5th hidden layer
-    return common_layer('softmax_linear', local4, [192, NUM_CLASSES], tensorflow.matmul, tensorflow.add,
-                        lambda x, name: x)
+    return common_layer(
+        'softmax_linear', local4, [192, NUM_CLASSES], 1 / 192, 0.0, 0.0,
+        tensorflow.matmul, tensorflow.add, lambda x, name: x)
 
 
 # calculate the loss
@@ -191,6 +183,5 @@ def training(loss, global_step, initial_learning_rate=0.1, learning_rate_decay_f
     # Use the optimizer to apply the gradients that minimize the loss
     # (and also increment the global step counter) as a single training step.
     return optimizer.minimize(loss, global_step=global_step)
-
 
 # setup summary and checkpoints
