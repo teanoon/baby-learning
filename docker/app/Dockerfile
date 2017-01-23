@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --force-yes --no-install-recommends \
     vim htop git openssh-client zsh tmux wget curl w3m less && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install pandas Flask
+RUN pip install pandas Flask pillow
 
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
