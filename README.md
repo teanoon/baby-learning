@@ -1,5 +1,11 @@
 #Baby is learning
 
+## Setup
+1. Install docker && docker-compose
+2. `> ./docker/deploy.sh`
+3. Then you can access http://0.0.0.0:5000 
+4. Or POST /recognize with 'multipart/form-data' and 'file' field to get hand writing recognition.
+
 ## Theories
 
 ## Steps:
@@ -10,7 +16,7 @@
 2. Learn complex algorithm.
     * ~~improve recognition success rate of this "hello world" example from 91.% to 99.9% up.~~
 3. Start a web server to communicate with the baby.
-    * rails/flask api backend
+    * ~~flask api backend~~
     * Wechat app as the client
 4. Enable GPU computing.
 5. ~~Log~~, ~~monitor~~, ~~visualize~~, embedding and distribute.
