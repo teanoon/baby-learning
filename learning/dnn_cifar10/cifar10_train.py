@@ -42,7 +42,7 @@ import time
 import tensorflow
 import tensorflow.contrib.framework.python.ops.variables as variables
 
-from dnn_cifar10 import cifar10
+from learning.dnn_cifar10 import cifar10
 
 FLAGS = tensorflow.app.flags.FLAGS
 

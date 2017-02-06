@@ -6,7 +6,7 @@ import tensorflow
 from PIL import Image
 from flask import Flask, jsonify, request
 
-from app import service
+from server.app import service
 
 MNIST_CHECKPOINT = os.path.join(os.path.dirname(__file__), "resources/simple_mnist_checkpoints/model.ckpt")
 

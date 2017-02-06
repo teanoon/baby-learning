@@ -2,5 +2,6 @@
 __pycache__/
 learning/resources/*
 learning/playground.py
+server/resources/simple_mnist_checkpoints/*
 !.keep
 .zsh_history

@@ -1,25 +1,26 @@
+import math
+from functools import reduce
+
 import tensorflow
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import math_ops
 from tensorflow.python.training import learning_rate_decay
 
-# Global constants describing the CIFAR-10 data set.
+# Global constants describing the mnist data set.
 NUM_CLASSES = 10
-BATCH_SIZE = 100
 # TODO dynamically read from mnist data set
 IMAGE_SIZE = 28 * 28
-MAX_STEPS = 1000
 
 # Constants describing the training process.
-MOVING_AVERAGE_DECAY = 0.9999  # The decay to use for the moving average.
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 50000
+BATCH_SIZE = 100
+NUM_EPOCHS = 2
+NUM_EXAMPLES_FOR_TRAIN = 55000
+NUM_STEPS_PER_EPOCH_FOR_TRAIN = int(NUM_EXAMPLES_FOR_TRAIN / BATCH_SIZE)
+NUM_EXAMPLES_FOR_TEST = 10000
+NUM_STEPS_PER_EPOCH_FOR_TEST = int(NUM_EXAMPLES_FOR_TEST / BATCH_SIZE)
+NUM_EXAMPLES_FOR_VALIDATION = 5000
+NUM_STEPS_PER_EPOCH_FOR_VALIDATION = int(NUM_EXAMPLES_FOR_VALIDATION / BATCH_SIZE)
 D_TYPE = dtypes.float32
-
-
-# If a model is trained with multiple GPUs, prefix all Op names with tower_name
-# to differentiate the operations. Note that this prefix is removed from the
-# names of the summaries when visualizing a model.
-# TOWER_NAME = 'tower'
 
 
 # helpers
@@ -72,7 +73,6 @@ def create_variable_with_weight_decay(name, shape, stddev, wd):
     Returns:
         Variable Tensor
     """
-    # TODO how can we not fully define the weight variable so we can dynamically change the batch size
     #  for different purposes like training, evaluating or predicting
     var = create_variable(
         name,
@@ -96,7 +96,7 @@ def common_layer(name, images, weight_shape, stddev, wd, initial_constant, conv_
         weighted = conv_func(images, weights)
         pre_activation = linear_func(weighted, biases)
         activation = activation_func(pre_activation, name=scope.name)
-        activation_summary(activation)
+        # activation_summary(activation)
 
     return activation
 
@@ -131,18 +131,21 @@ def inference(images):
     norm2 = normalize('norm-2', conv2)
     pool2 = pool('pool-2', norm2)
 
-    # TODO why these two layers?
-    # 3rd hidden layer
+    # 3rd hidden dense connected layer
     # Move everything into depth so we can perform a single matrix multiply.
-    reshape = tensorflow.reshape(pool2, [pool2.get_shape()[0].value, -1])
-    dim = reshape.get_shape()[1].value
+    dim = reduce(lambda x, y: x * y, pool2.get_shape()[1:]).value
+    reshape = tensorflow.reshape(pool2, shape=[-1, dim])
+    local3_weight_stddev = 1 / math.sqrt(dim)
+    print('local3_weight_stddev: %f' % local3_weight_stddev)
     local3 = common_layer(
-        'local3', reshape, [dim, 384], 0.04, 0.004, 0.1,
+        'local3', reshape, [dim, 384], local3_weight_stddev, 0.004, 0.1,
         tensorflow.matmul, tensorflow.add, tensorflow.nn.relu)
 
-    # 4th hidden layer
+    # 4th hidden dense connected layer
+    local4_weight_stddev = 1 / math.sqrt(384)
+    print('local4_weight_stddev: %f' % local4_weight_stddev)
     local4 = common_layer(
-        'local4', local3, [384, 192], 0.04, 0.004, 0.1,
+        'local4', local3, [384, 192], local4_weight_stddev, 0.004, 0.1,
         tensorflow.matmul, tensorflow.add, tensorflow.nn.relu)
 
     # 5th hidden layer
@@ -163,23 +166,31 @@ def calculate_loss(logits, labels):
     # decay terms (L2 loss).
     # see #create_variable_with_weight_decay
     tensorflow.add_to_collection('losses', cross_entropy_mean)
-    return tensorflow.add_n(tensorflow.get_collection('losses'), name='total_loss')
+    loss = tensorflow.add_n(tensorflow.get_collection('losses'), name='total_loss')
+    tensorflow.summary.scalar('loss', loss)
+
+    return loss
 
 
 # calculate the evaluation accuracy during training
-def evaluation(logits, labels):
+def validate(logits, labels):
     logits = math_ops.cast(logits, dtypes.float32)
     labels = math_ops.cast(labels, dtypes.int64)
     correct = tensorflow.nn.in_top_k(logits, labels, 1)
     # Return the number of true entries.
-    return tensorflow.reduce_sum(tensorflow.cast(correct, tensorflow.int32))
+    accuracy = tensorflow.reduce_sum(tensorflow.cast(correct, tensorflow.int32))
+    shape = tensorflow.shape(logits)
+    tensorflow.summary.scalar('accuracy', accuracy / shape[0] * 100)
+
+    return accuracy
 
 
 # setup gradient decent optimizer
-def training(loss, global_step, initial_learning_rate=0.1, learning_rate_decay_factor=0.1, num_epoch_per_decay=500):
-    num_step_per_decay = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / BATCH_SIZE * num_epoch_per_decay
+def training(loss, global_step, initial_learning_rate=0.1, learning_rate_decay_factor=0.1, num_epochs_per_decay=10):
+    num_steps_per_decay = NUM_STEPS_PER_EPOCH_FOR_TRAIN * num_epochs_per_decay
     learning_rate = learning_rate_decay.exponential_decay(
-        initial_learning_rate, global_step, num_step_per_decay, learning_rate_decay_factor)
+        initial_learning_rate, global_step, num_steps_per_decay, learning_rate_decay_factor)
+    tensorflow.summary.scalar('learning_rate', learning_rate)
 
     # Create the gradient descent optimizer with the given learning rate.
     optimizer = tensorflow.train.GradientDescentOptimizer(learning_rate)

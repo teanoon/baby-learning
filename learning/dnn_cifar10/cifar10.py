@@ -44,7 +44,7 @@ from urllib import request
 import tensorflow
 from tensorflow.python.summary import summary
 
-from dnn_cifar10 import cifar10_input
+from learning.dnn_cifar10 import cifar10_input
 
 FLAGS = tensorflow.app.flags.FLAGS
 
