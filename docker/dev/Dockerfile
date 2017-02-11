@@ -1,4 +1,4 @@
-FROM tensorflow_app:latest
+FROM babylearning_app:latest
 
 USER root
 RUN echo "deb http://packages.linuxmint.com debian import" | tee /etc/apt/sources.list.d/firefox.list && \

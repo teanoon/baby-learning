@@ -18,5 +18,3 @@ services:
     ports:
       - 8888:8888
       - 5000:5000
-    links:
-      - mongo

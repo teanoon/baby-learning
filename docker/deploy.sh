@@ -21,4 +21,4 @@ docker-compose run app bash -c "\
     git pull
   fi
 "
-docker-compose run app python baby-learning/server/api.py
+docker-compose up
