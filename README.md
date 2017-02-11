@@ -3,8 +3,7 @@
 ## Setup
 1. Install docker && docker-compose
 2. `> ./docker/deploy.sh`
-3. Then you can access http://0.0.0.0:5000 
-4. Or POST /recognize with 'multipart/form-data' and 'file' field to get hand writing recognition.
+3. POST normal images to http://0.0.0.0:5000/recognize with 'multipart/form-data' and 'file' field to get hand writing recognition.
 
 ## Theories
 
@@ -15,7 +14,7 @@
     * ~~Data mining~~
 2. Learn complex algorithm.
     * improve recognition success rate of this "hello world" example from 91.% to 99.9% up.
-    * Tweak hyper-paremeters
+    * Tweak hyper-paremeters(hyperopt automation)
     * Generic data input(may have a perfect solution in TensorflowServing)
     * ~~Weight initialization(L2 regularization)~~
     * Dropout
