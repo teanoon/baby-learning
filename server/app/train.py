@@ -1,88 +1,59 @@
+import itertools
 import os
-import time
+import uuid
 
-import tensorflow
+from hyperopt import hp, fmin, tpe
+from hyperopt.mongoexp import MongoTrials
 from tensorflow.examples.tutorials.mnist import input_data
-from tensorflow.python.framework import dtypes
 
-from server.app import service
+from server.app.service import SessionRunner
 
 
-RESOURCES = os.path.join(os.path.dirname(__file__), '../resources')
-CHECKPOINT_FOLDER = os.path.join(os.path.dirname(__file__), '../resources/simple_mnist_checkpoints/')
-CHECKPOINT = os.path.join(os.path.dirname(__file__), '../resources/simple_mnist_checkpoints/model.ckpt')
-LOG_DIR = '/tmp/simple_mnist_logs'
+def training(args):
+    data_set = input_data.read_data_sets(os.path.join(os.path.dirname(__file__), '../resources'))
 
-# Input
-data_set = input_data.read_data_sets(RESOURCES)
+    losses = []
+    validation_accuracies = []
+    with SessionRunner(args) as runner:
+        loss, train, accuracy = runner.draw_graph()
+        # run
+        for epoch, step in itertools.product(range(runner.epochs), range(runner.steps)):
+            if step == 0:
+                print('start epoch %d' % (epoch + 1))
 
-# train variables and ops
-label_placeholder = tensorflow.placeholder(dtypes.int64, shape=None)
-image_placeholder = tensorflow.placeholder(dtypes.float32, shape=[None, 28, 28, 1])
-logits = service.inference(image_placeholder)
-total_loss = service.calculate_loss(logits, label_placeholder)
-global_step = service.tensorflow.Variable(0, name='global_step', trainable=False)
-train = service.training(
-    total_loss, global_step, initial_learning_rate=0.1, learning_rate_decay_factor=0.1, num_epochs_per_decay=1)
+            # train
+            images, labels = data_set.train.next_batch(runner.batch_size)
+            _loss, _train = runner.process([loss, train], images, labels)
+            losses.append(_loss)
 
-# test/validate
-accuracy = service.validate(logits, label_placeholder)
+            # validate
+            if not step + 1 == runner.steps:
+                continue
+            validation_accuracy = runner.process(accuracy, data_set.validation.images, data_set.validation.labels)
+            validation_accuracies.append(validation_accuracy)
 
-# initialize
-session = tensorflow.Session()
-init = tensorflow.global_variables_initializer()
-session.run(init)
+        # objective value
+        test_accuracy = runner.process(accuracy, data_set.test.images, data_set.test.labels)
+        return 1 - test_accuracy
 
-# Add ops to save and restore all the variables.
-if os.path.exists(CHECKPOINT_FOLDER):
-    for root, dirs, files in os.walk(CHECKPOINT_FOLDER):
-        for name in files:
-            os.remove(os.path.join(root, name))
-saver = tensorflow.train.Saver()
 
-# Merge all the summaries and write them out to /tmp/train
-merged = tensorflow.summary.merge_all()
-train_writer = tensorflow.summary.FileWriter('%s/train' % LOG_DIR, session.graph)
-test_writer = tensorflow.summary.FileWriter('%s/test' % LOG_DIR, session.graph)
-validation_writer = tensorflow.summary.FileWriter('%s/validation' % LOG_DIR, session.graph)
+space = {
+    'batch_size': hp.quniform('batch_size', 1, 300, 1),
+    'epochs': hp.quniform('epochs', 1, 2, 1),
+    'initial_learning_rate': hp.uniform('initial_learning_rate', 0.01, 0.5),
+    'learning_rate_decay_factor': hp.uniform('learning_rate_decay_factor', 0.01, 0.1),
+    'num_epochs_per_decay': hp.quniform('num_epochs_per_decay', 1, 20, 1)
+}
 
-start_time_stamp = time.time()
-print("starting")
-for epoch in range(service.NUM_EPOCHS):
-    print("Start epoch#%s ..." % (epoch + 1))
-    for step in range(service.NUM_STEPS_PER_EPOCH_FOR_TRAIN):
-        NUMBER = epoch * service.NUM_STEPS_PER_EPOCH_FOR_TRAIN + step + 1
+# TODO use MongoTrials
+trials = MongoTrials('mongo://mongo:27017/mnist/jobs', exp_key='case-1')
+best = fmin(
+    training,
+    space=dict(space.items(), **{'example_size': 500}),
+    algo=tpe.suggest,
+    trials=trials,
+    max_evals=10)
+print(best)
 
-        # Train
-        images, labels = data_set.train.next_batch(service.BATCH_SIZE)
-        images = session.run(tensorflow.reshape(images, shape=[service.BATCH_SIZE, 28, 28, 1]))
-        summary, _train = session.run([merged, train], feed_dict={
-            label_placeholder: labels,
-            image_placeholder: images
-        })
-        train_writer.add_summary(summary, NUMBER)
-
-        # Test
-        if step + 1 == service.NUM_STEPS_PER_EPOCH_FOR_TRAIN:
-            images = data_set.test.images
-            images = session.run(tensorflow.reshape(images, shape=[images.shape[0], 28, 28, 1]))
-            summary, _test = session.run([merged, accuracy], feed_dict={
-                label_placeholder: data_set.test.labels,
-                image_placeholder: images
-            })
-            test_writer.add_summary(summary, NUMBER)
-
-        # Validate
-        if NUMBER % 10 == 0 or step + 1 == service.NUM_STEPS_PER_EPOCH_FOR_TRAIN:
-            images = data_set.validation.images
-            images = session.run(tensorflow.reshape(images, shape=[images.shape[0], 28, 28, 1]))
-            summary, _validate = session.run([merged, accuracy], feed_dict={
-                label_placeholder: data_set.validation.labels,
-                image_placeholder: images
-            })
-            validation_writer.add_summary(summary, NUMBER)
-
-saver.save(session, CHECKPOINT)
-train_writer.close()
-test_writer.close()
-validation_writer.close()
+# final_errors = training(dict(best.items(), **{'example_size': 55000}))
+# print('test accuracy: %f' % (1 - final_errors))

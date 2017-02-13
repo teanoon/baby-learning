@@ -1,209 +1,66 @@
-import math
-from functools import reduce
+import uuid
 
 import tensorflow
 from tensorflow.python.framework import dtypes
-from tensorflow.python.ops import math_ops
-from tensorflow.python.training import learning_rate_decay
 
-# Global constants describing the mnist data set.
-NUM_CLASSES = 10
-# TODO dynamically read from mnist data set
-IMAGE_SIZE = 28 * 28
+from server.app import model
 
-# Constants describing the training process.
-BATCH_SIZE = 100
-NUM_EPOCHS = 2
-NUM_EXAMPLES_FOR_TRAIN = 55000
-NUM_STEPS_PER_EPOCH_FOR_TRAIN = int(NUM_EXAMPLES_FOR_TRAIN / BATCH_SIZE)
-NUM_EXAMPLES_FOR_TEST = 10000
-NUM_STEPS_PER_EPOCH_FOR_TEST = int(NUM_EXAMPLES_FOR_TEST / BATCH_SIZE)
-NUM_EXAMPLES_FOR_VALIDATION = 5000
-NUM_STEPS_PER_EPOCH_FOR_VALIDATION = int(NUM_EXAMPLES_FOR_VALIDATION / BATCH_SIZE)
-D_TYPE = dtypes.float32
+LOG_DIR = '/tmp/simple_mnist_logs'
 
 
-# helpers
-def activation_summary(x):
-    """Helper to create summaries for activations.
+class SessionRunner:
+    def __init__(self, args):
+        example_size = args.get('example_size')
+        self.batch_size = int(args.get('batch_size'))
+        self.steps = int(example_size / self.batch_size)
+        self.epochs = int(args.get('epochs'))
+        self.initial_learning_rate = args.get('initial_learning_rate')
+        self.learning_rate_decay_factor = args.get('learning_rate_decay_factor')
+        num_epochs_per_decay = args.get('num_epochs_per_decay')
+        self.num_steps_per_decay = self.steps * num_epochs_per_decay
 
-    Creates a summary that provides a histogram of activations.
-    Creates a summary that measures the sparsity of activations.
+        self.session = tensorflow.Session()
+        self.label_placeholder = tensorflow.placeholder(dtypes.int64, shape=None)
+        self.image_placeholder = tensorflow.placeholder(dtypes.float32, shape=[None, 28, 28, 1])
 
-    Args:
-        x: Tensor
-    Returns:
-        nothing
-    """
-    # Remove 'tower_[0-9]/' from the name in case this is a multi-GPU training
-    # session. This helps the clarity of presentation on tensorboard.
-    tensorflow.summary.histogram(x.op.name + '/activations', x)
-    tensorflow.summary.scalar(x.op.name + '/sparsity', tensorflow.nn.zero_fraction(x))
+        self.train_writer = tensorflow.summary.FileWriter('%s/train' % LOG_DIR, self.session.graph)
+        self.test_writer = tensorflow.summary.FileWriter('%s/test' % LOG_DIR, self.session.graph)
+        self.validation_writer = tensorflow.summary.FileWriter('%s/validation' % LOG_DIR, self.session.graph)
 
+    def __enter__(self):
+        return self
 
-def create_variable(name, shape, initializer):
-    """Helper to create a Variable stored on CPU memory.
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
-    Args:
-      name: name of the variable
-      shape: list of ints
-      initializer: initializer for Variable
+    def draw_graph(self):
+        with tensorflow.variable_scope("case-{}".format(uuid.uuid4())):
+            global_step = tensorflow.Variable(0, name='global_step', trainable=False)
+            logits = model.inference(self.image_placeholder)
+            loss = model.loss(logits, self.label_placeholder)
+            train = model.training(
+                loss, global_step,
+                initial_learning_rate=self.initial_learning_rate,
+                learning_rate_decay_factor=self.learning_rate_decay_factor,
+                num_steps_per_decay=self.num_steps_per_decay)
+            accuracy = model.validate(logits, self.label_placeholder)
 
-    Returns:
-      Variable Tensor
-    """
-    with tensorflow.device('/cpu:0'):
-        var = tensorflow.get_variable(name, shape, initializer=initializer, dtype=D_TYPE)
-    return var
+        init = tensorflow.global_variables_initializer()
+        self.session.run(init)
 
+        return loss, train, accuracy
 
-def create_variable_with_weight_decay(name, shape, stddev, wd):
-    """Helper to create an initialized Variable with weight decay.
+    def process(self, opts, _images, _labels):
+        _images = tensorflow.reshape(_images, shape=[_images.shape[0], 28, 28, 1])
+        _images = self.session.run(_images)
+        return self.session.run(opts, feed_dict={
+            self.label_placeholder: _labels,
+            self.image_placeholder: _images
+        })
 
-    Note that the Variable is initialized with a truncated normal distribution.
-    A weight decay is added only if one is specified.
-
-    Args:
-        name: name of the variable
-        shape: list of ints
-        stddev: standard deviation of a truncated Gaussian
-        wd: add L2Loss weight decay multiplied by this float. If None, weight
-            decay is not added for this Variable.
-
-    Returns:
-        Variable Tensor
-    """
-    #  for different purposes like training, evaluating or predicting
-    var = create_variable(
-        name,
-        shape,
-        tensorflow.truncated_normal_initializer(stddev=stddev, dtype=D_TYPE))
-    if wd is not None:
-        weight_decay = tensorflow.mul(tensorflow.nn.l2_loss(var), wd, name='weight_loss')
-        tensorflow.add_to_collection('losses', weight_decay)
-    return var
-
-
-# inference - build model
-# layers are consist of convolution layer with ReLu activation and max pooling
-# each convolution layer should use different kernel
-def common_layer(name, images, weight_shape, stddev, wd, initial_constant, conv_func, linear_func, activation_func):
-    with tensorflow.variable_scope(name) as scope:
-        weights = create_variable_with_weight_decay(
-            'weights', shape=weight_shape, stddev=stddev, wd=wd)
-        biases = create_variable(
-            'biases', weight_shape[-1:], tensorflow.constant_initializer(initial_constant))
-        weighted = conv_func(images, weights)
-        pre_activation = linear_func(weighted, biases)
-        activation = activation_func(pre_activation, name=scope.name)
-        # activation_summary(activation)
-
-    return activation
-
-
-def conv2d(images, kernel):
-    return tensorflow.nn.conv2d(images, kernel, [1, 1, 1, 1], padding='SAME')
-
-
-def pool(name, activation):
-    return tensorflow.nn.max_pool(
-        activation, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
-
-
-def normalize(name, pooling):
-    return tensorflow.nn.lrn(
-        pooling, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name=name)
-
-
-def inference(images):
-    # 1st hidden layer
-    conv1 = common_layer(
-        'convolution-1', images, [5, 5, 1, 32], 5e-2, 0.0, 0.0,
-        conv2d, tensorflow.nn.bias_add, tensorflow.nn.relu)
-    pool1 = pool('pool-1', conv1)
-    norm1 = normalize('norm-1', pool1)
-
-    # 2st hidden layer
-    conv2 = common_layer(
-        'convolution-2', norm1, [5, 5, 32, 32], 5e-2, 0.0, 0.1,
-        conv2d, tensorflow.nn.bias_add, tensorflow.nn.relu)
-    # TODO why change order?
-    norm2 = normalize('norm-2', conv2)
-    pool2 = pool('pool-2', norm2)
-
-    # 3rd hidden dense connected layer
-    # Move everything into depth so we can perform a single matrix multiply.
-    dim = reduce(lambda x, y: x * y, pool2.get_shape()[1:]).value
-    reshape = tensorflow.reshape(pool2, shape=[-1, dim])
-    local3_weight_stddev = 1 / math.sqrt(dim)
-    print('local3_weight_stddev: %f' % local3_weight_stddev)
-    local3 = common_layer(
-        'local3', reshape, [dim, 384], local3_weight_stddev, 0.004, 0.1,
-        tensorflow.matmul, tensorflow.add, tensorflow.nn.relu)
-
-    # 4th hidden dense connected layer
-    local4_weight_stddev = 1 / math.sqrt(384)
-    print('local4_weight_stddev: %f' % local4_weight_stddev)
-    local4 = common_layer(
-        'local4', local3, [384, 192], local4_weight_stddev, 0.004, 0.1,
-        tensorflow.matmul, tensorflow.add, tensorflow.nn.relu)
-
-    # 5th hidden layer
-    return common_layer(
-        'softmax_linear', local4, [192, NUM_CLASSES], 1 / 192, 0.0, 0.0,
-        tensorflow.matmul, tensorflow.add, lambda x, name: x)
-
-
-# calculate the loss
-def calculate_loss(logits, labels):
-    # Calculate the average cross entropy loss across the batch.
-    labels = math_ops.cast(labels, dtypes.int64)
-    cross_entropy = tensorflow.nn.sparse_softmax_cross_entropy_with_logits(
-        labels=labels, logits=logits, name='cross_entropy_per_example')
-    cross_entropy_mean = tensorflow.reduce_mean(cross_entropy, name='cross_entropy')
-
-    # The total loss is defined as the cross entropy loss plus all of the weight
-    # decay terms (L2 loss).
-    # see #create_variable_with_weight_decay
-    tensorflow.add_to_collection('losses', cross_entropy_mean)
-    loss = tensorflow.add_n(tensorflow.get_collection('losses'), name='total_loss')
-    tensorflow.summary.scalar('loss', loss)
-
-    return loss
-
-
-# calculate the evaluation accuracy during training
-def validate(logits, labels):
-    logits = math_ops.cast(logits, dtypes.float32)
-    labels = math_ops.cast(labels, dtypes.int64)
-    correct = tensorflow.nn.in_top_k(logits, labels, 1)
-    # Return the number of true entries.
-    accuracy = tensorflow.reduce_sum(tensorflow.cast(correct, tensorflow.int32))
-    shape = tensorflow.shape(logits)
-    tensorflow.summary.scalar('accuracy', accuracy / shape[0] * 100)
-
-    return accuracy
-
-
-# setup gradient decent optimizer
-def training(loss, global_step, initial_learning_rate=0.1, learning_rate_decay_factor=0.1, num_epochs_per_decay=10):
-    num_steps_per_decay = NUM_STEPS_PER_EPOCH_FOR_TRAIN * num_epochs_per_decay
-    learning_rate = learning_rate_decay.exponential_decay(
-        initial_learning_rate, global_step, num_steps_per_decay, learning_rate_decay_factor)
-    tensorflow.summary.scalar('learning_rate', learning_rate)
-
-    # Create the gradient descent optimizer with the given learning rate.
-    optimizer = tensorflow.train.GradientDescentOptimizer(learning_rate)
-    # Use the optimizer to apply the gradients that minimize the loss
-    # (and also increment the global step counter) as a single training step.
-    return optimizer.minimize(loss, global_step=global_step)
-
-
-# setup summary and checkpoints
-def save():
-    pass
-
-
-# calc softmax for predictions
-def softmax(logits):
-    return tensorflow.nn.softmax(logits)
+    def close(self):
+        self.session.close()
+        tensorflow.reset_default_graph()
+        self.train_writer.close()
+        self.test_writer.close()
+        self.validation_writer.close()

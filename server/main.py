@@ -6,7 +6,7 @@ import tensorflow
 from PIL import Image
 from flask import Flask, jsonify, request
 
-from server.app import service
+from server.app import model
 
 MNIST_CHECKPOINT = os.path.join(os.path.dirname(__file__), "resources/simple_mnist_checkpoints/model.ckpt")
 
@@ -17,8 +17,8 @@ image_placeholder = tensorflow.placeholder(
 session = tensorflow.Session()
 
 # restore trained data
-logits = service.inference(image_placeholder)
-labels = service.softmax(logits)
+logits = model.inference(image_placeholder)
+labels = model.softmax(logits)
 saver = tensorflow.train.Saver()
 saver.restore(session, MNIST_CHECKPOINT)
 

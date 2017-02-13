@@ -111,7 +111,7 @@ def do_evaluate(session, eval_correct, images_placeholder, labels_placeholder, d
     num_examples = steps_per_epoch * BATCH_SIZE
     for step in range(steps_per_epoch):
         feed_dict = fill_feed_dict(data_set, images_placeholder, labels_placeholder)
-        true_count += session.run(eval_correct, feed_dict=feed_dict)
+        true_count += session.process(eval_correct, feed_dict=feed_dict)
     precision = float(true_count) / num_examples
     print('Num examples: %d  Num correct: %d  Precision @ 1: %0.04f' % (num_examples, true_count, precision))
 
