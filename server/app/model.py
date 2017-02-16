@@ -65,7 +65,7 @@ def create_variable_with_weight_decay(name, shape, stddev, wd):
         shape,
         tensorflow.truncated_normal_initializer(stddev=stddev, dtype=D_TYPE))
     if wd is not None:
-        weight_decay = tensorflow.mul(tensorflow.nn.l2_loss(var), wd, name='weight_loss')
+        weight_decay = tensorflow.multiply(tensorflow.nn.l2_loss(var), wd, name='weight_loss')
         tensorflow.add_to_collection('losses', weight_decay)
     return var
 
