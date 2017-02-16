@@ -5,17 +5,6 @@ services:
     image: mongo:3.2
     volumes:
       - ./db/mongo:/data/db
-  mongoclient:
-    container_name: baby-learning-mongo-client
-    image: mongoclient/mongoclient:latest
-    environment:
-      - MONGO_URL:mongo
-    volumes:
-      - ./db/mongoclient:/data/db
-    ports:
-      - 3000:3000
-    links:
-      - mongo
   data:
     container_name: baby-learning-data
     image: debian:jessie
@@ -33,8 +22,10 @@ services:
     volumes_from:
       - data
     ports:
-      - 8888:8888
-      - 5000:5000
+      # tensorboard
+      - 7800
+      # flask
+      - 7000
     links:
       - mongo
 volumes:
