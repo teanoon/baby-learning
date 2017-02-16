@@ -51,7 +51,7 @@ FLAGS = tensorflow.app.flags.FLAGS
 # Basic model parameters.
 tensorflow.app.flags.DEFINE_integer('batch_size', 128,
                                     """Number of images to process in a batch.""")
-tensorflow.app.flags.DEFINE_string('data_dir', '../resources/cifar-10-batches-bin',
+tensorflow.app.flags.DEFINE_string('data_dir', '../../resources/cifar-10-batches-bin',
                                    """Path to the CIFAR-10 data directory.""")
 tensorflow.app.flags.DEFINE_boolean('use_fp16', False,
                                     """Train the model using fp16.""")

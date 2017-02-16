@@ -1,8 +1,10 @@
 # codes
 .idea/
 __pycache__/
-learning/resources/*
-learning/playground.py
+server/log/*
+server/checkpoints/*
+server/resources/*
+server/learning/playground.py
 
 # docker
 .zsh_history
