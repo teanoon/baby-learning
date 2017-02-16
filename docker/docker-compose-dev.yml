@@ -17,11 +17,8 @@ services:
       - data
     ports:
       # tensorboard
-      - 7800
+      - 7800:7800
       # flask
-      - 7000
-      # wooey
-      - 7100
+      - 7000:7000
     links:
       - mongo
-      - mongoclient
