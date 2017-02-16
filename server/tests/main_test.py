@@ -3,7 +3,7 @@ import json
 import os
 import unittest
 
-import main
+from server import main
 
 NUMBER_EIGHT_PIC = os.path.join(os.path.dirname(__file__), '../resources/8.jpg')
 
