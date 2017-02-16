@@ -13,7 +13,7 @@ services:
     volumes:
       - ./db/mongoclient:/data/db
     ports:
-      - 3000:3000
+      - 7300:3000
     links:
       - mongo
   data:
@@ -33,8 +33,12 @@ services:
     volumes_from:
       - data
     ports:
-      - 8888:8888
-      - 5000:5000
+      # tensorboard
+      - 7800
+      # flask
+      - 7000
+      # wooey
+      - 7100
     links:
       - mongo
 volumes:
