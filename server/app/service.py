@@ -3,18 +3,19 @@ import uuid
 
 import pymongo
 import tensorflow
-import yaml
 from hyperopt import Trials
 from tensorflow.python.framework import dtypes
 
 from server.app import model
 
+CHECKPOINT = os.path.join(os.path.dirname(__file__), '../checkpoints/simple_mnist_checkpoints/model.ckpt')
 LOG_DIR = os.path.join(os.path.dirname(__file__), '../log/simple_mnist_logs')
-PARAM_FILE_NAME = os.path.join(os.path.dirname(__file__), '../resources/params.yml')
 
 
 class SessionRunner:
     def __init__(self, args):
+        self.is_optimizing = args.get('is_optimizing')
+        self.exp_key = args.get('exp_key')
         example_size = args.get('example_size')
         self.batch_size = int(args.get('batch_size'))
         self.steps = int(example_size / self.batch_size)
@@ -25,7 +26,7 @@ class SessionRunner:
         self.num_steps_per_decay = self.steps * num_epochs_per_decay
 
         self.session = tensorflow.Session()
-        with tensorflow.variable_scope("case-{}-{}".format(args.get('exp_key'), uuid.uuid4())):
+        with tensorflow.variable_scope("case-{}-{}".format(self.exp_key, uuid.uuid4())):
             self._global_step = tensorflow.Variable(0, name='global_step', trainable=False)
             self.label_placeholder = tensorflow.placeholder(dtypes.int64, shape=None)
             self.image_placeholder = tensorflow.placeholder(dtypes.float32, shape=[None, 28, 28, 1])
@@ -51,25 +52,19 @@ class SessionRunner:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def draw_graph(self):
-        with tensorflow.variable_scope("case-{}".format(uuid.uuid4())):
-            global_step = tensorflow.Variable(0, name='global_step', trainable=False)
-            logits = model.inference(self.image_placeholder)
-            loss = model.loss(logits, self.label_placeholder)
-            train = model.training(
-                loss, global_step,
-                initial_learning_rate=self.initial_learning_rate,
-                learning_rate_decay_factor=self.learning_rate_decay_factor,
-                num_steps_per_decay=self.num_steps_per_decay)
-            accuracy = model.validate(logits, self.label_placeholder)
-
-        init = tensorflow.global_variables_initializer()
-        self.session.run(init)
-
-        return loss, train, accuracy
-
     def global_step(self):
         return self.session.run(self._global_step)
+
+    def checkpoint(self):
+        if self.is_optimizing:
+            pass
+        folder = os.path.join(
+            os.path.dirname(__file__), '../checkpoints/{}/'.format(self.exp_key))
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        path = os.path.join(folder, 'model.ckpt')
+        saver = tensorflow.train.Saver()
+        saver.save(self.session, path)
 
     def process(self, opts, _images, _labels):
         _images = tensorflow.reshape(_images, shape=[_images.shape[0], 28, 28, 1])
@@ -86,6 +81,7 @@ class SessionRunner:
         self.validation_writer.add_summary(summary, step)
 
     def close(self):
+        self.checkpoint()
         self.session.close()
         tensorflow.reset_default_graph()
         self.train_writer.close()

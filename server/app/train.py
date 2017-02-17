@@ -8,7 +8,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 from server.app.service import SessionRunner, OptimizationTracker
 
-PARAM_FILE_NAME = os.path.join(os.path.dirname(__file__), 'params.yml')
+PARAM_FILE_NAME = os.path.join(os.path.dirname(__file__), '../resources/params.yml')
 DATA_SET = input_data.read_data_sets(os.path.join(os.path.dirname(__file__), '../resources'))
 
 
@@ -27,10 +27,10 @@ def training(args):
             runner.add_train_summary(_summary, global_step)
 
             # validate
-            if not step + 1 == runner.steps:
+            if not step + 1 == runner.steps and not args.get('is_optimizing'):
                 continue
-            _summary, validation_accuracy = runner.process([runner.merged, runner.accuracy],
-                                                           DATA_SET.validation.images, DATA_SET.validation.labels)
+            images, labels = DATA_SET.validation.images, DATA_SET.validation.labels
+            _summary, _ = runner.process([runner.merged, runner.accuracy], images, labels)
             runner.add_validation_summary(_summary, global_step)
 
         # objective value
@@ -53,7 +53,7 @@ with OptimizationTracker('mnist') as tracker:
     trials = tracker.restore(params.get('exp_key'))
     best = fmin(
         training,
-        space=dict(space.items(), **{'example_size': 500, 'exp_key': params.get('exp_key')}),
+        space=dict(space.items(), **{'example_size': 500, 'is_optimizing': True, 'exp_key': params.get('exp_key')}),
         algo=tpe.suggest,
         trials=trials,
         max_evals=params.get('max_evals'))
