@@ -1,26 +1,17 @@
-version: '2'
+version: '3'
 services:
   mongo:
-    container_name: baby-learning-mongo
     image: mongo:3.2
     volumes:
       - ./db/mongo:/data/db
-  data:
-    container_name: baby-learning-data
-    image: debian:jessie
-    command: 'chown 1000:1000 /code -R'
-    volumes:
-      - code-volume:/code
   app:
-    container_name: baby-learning-app
     build: app
     command: 'python baby-learning/server/main.py'
     volumes:
+      - ./:/project
       - ~/.ssh:/home/dev/.ssh
       - ~/.gitconfig:/home/dev/.gitconfig
       - .zsh_history:/home/dev/.zsh_history
-    volumes_from:
-      - data
     ports:
       # tensorboard
       - 7800
@@ -28,6 +19,3 @@ services:
       - 7000
     links:
       - mongo
-volumes:
-  code-volume:
-    driver: local

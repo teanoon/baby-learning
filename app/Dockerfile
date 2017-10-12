@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:1.0.0-py3
+FROM tensorflow/tensorflow:1.3.0-py3
 
 RUN apt-get update && apt-get install -y --force-yes --no-install-recommends \
     # common dev tools
@@ -7,14 +7,15 @@ RUN apt-get update && apt-get install -y --force-yes --no-install-recommends \
 
 RUN pip install -i https://pypi.tuna.tsinghua.edu.cn/simple pandas Flask pillow hyperopt pyyaml
 
-RUN locale-gen en_US.UTF-8
-ENV LANG en_US.UTF-8
+# RUN locale-gen en_US.UTF-8
+# ENV LANG en_US.UTF-8
 
 RUN useradd -m dev && \
-    chsh -s /bin/zsh dev
+    chsh -s /bin/zsh dev && \
+    mkdir /project && chown dev:dev /project
 
 USER dev
 RUN git clone -b personalize git://github.com/teanoon/oh-my-zsh.git ~/.oh-my-zsh && \
     ln -s ~/.oh-my-zsh/templates/zshrc.zsh-template ~/.zshrc
 
-WORKDIR /code
+WORKDIR /project
