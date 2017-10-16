@@ -1,68 +1,45 @@
-import os
-
-import PIL.ImageOps
-import numpy
-import tensorflow
-from PIL import Image
-from flask import Flask, jsonify, request
-
-from server.app import model
-
-MNIST_CHECKPOINT = os.path.join(os.path.dirname(__file__), "resources/simple_mnist_checkpoints/model.ckpt")
-
-# restore the train data
-image_placeholder = tensorflow.placeholder(
-    tensorflow.float32,
-    shape=[1, 28, 28, 1])
-session = tensorflow.Session()
-
-# restore trained data
-logits = model.inference(image_placeholder)
-labels = model.softmax(logits)
-saver = tensorflow.train.Saver()
-saver.restore(session, MNIST_CHECKPOINT)
+import tensorflow as tf
+import numpy as np
 
 
-def read_image(_input):
-    # TODO we won't need greyscale in the future
-    image = Image.open(_input).convert('L')
+# args names are restricted
+def model_fn(features, labels, mode):
+    # model
+    _weight = tf.get_variable(name="weight", shape=[1], dtype=tf.float32)
+    _bias = tf.get_variable(name="bias", shape=[1], dtype=tf.float32)
+    linear_model = features['x'] * _weight + _bias
+    # loss sub-graph
+    loss = tf.reduce_sum(tf.square(linear_model - labels))
+    # train sub-graph
+    optimizer = tf.train.GradientDescentOptimizer(0.01)
+    global_step = tf.train.get_global_step()
+    train = tf.group(optimizer.minimize(loss), tf.assign_add(global_step, 1))
 
-    # padding
-    long_side = max(image.size)
-    horizontal_left_padding = int((long_side - image.size[0]) / 2)
-    horizontal_right_padding = long_side - image.size[0] - horizontal_left_padding
-    vertical_top_padding = int((long_side - image.size[1]) / 2)
-    vertical_bottom_padding = long_side - image.size[1] - vertical_top_padding
-    image = PIL.ImageOps.expand(
-        image,
-        (horizontal_left_padding, vertical_top_padding, horizontal_right_padding, vertical_bottom_padding),
-        fill=255)
-
-    image.thumbnail((28, 28))
-
-    # TODO maybe we need a transpose here?
-    image = numpy.asarray(image, dtype=numpy.uint8).reshape((1, 28, 28, 1))
-    return (255 - image) / 255.0
+    # estimator connects graphs
+    return tf.estimator.EstimatorSpec(mode=mode, predictions=linear_model, loss=loss, train_op=train)
 
 
-def convolutional(_input):
-    return session.run(labels, feed_dict={image_placeholder: _input}).flatten().tolist()
+estimator = tf.estimator.Estimator(model_fn=model_fn)
 
-# start the app
-app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+# data sets
+x_train = np.array([1., 2., 3., 4.], dtype=np.float32)
+y_train = np.array([5., 8., 11., 14.], dtype=np.float32)
+x_eval = np.array([5., 6., 7., 8.], dtype=np.float32)
+y_eval = np.array([17., 20., 23., 26.], dtype=np.float32)
 
+# input functions
+input_fn = tf.estimator.inputs.numpy_input_fn(
+    {"x": x_train}, y_train, batch_size=4, num_epochs=None, shuffle=True)
+train_input_fn = tf.estimator.inputs.numpy_input_fn(
+    {"x": x_train}, y_train, batch_size=4, num_epochs=1000, shuffle=False)
+eval_input_fn = tf.estimator.inputs.numpy_input_fn(
+    {"x": x_eval}, y_eval, batch_size=4, num_epochs=1000, shuffle=False)
 
-@app.route("/")
-def hello():
-    return jsonify(results={'say': 'hello world!'})
+# train
+estimator.train(input_fn=input_fn, steps=1000)
+# eval
+train_metrics = estimator.evaluate(input_fn=train_input_fn)
+eval_metrics = estimator.evaluate(input_fn=eval_input_fn)
 
-
-@app.route("/recognize", methods=['POST'])
-def recognize():
-    _input = read_image(request.files['file'])
-    output = convolutional(_input)
-    return jsonify(output=output, hit=str(numpy.argmax(output)))
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0')
+print("train metrics: %r" % train_metrics)
+print("eval metrics: %r" % eval_metrics)
