@@ -1,8 +1,11 @@
 FROM babylearning_app:latest
 
+ARG proxy
+ENV http_proxy=$proxy
+ENV https_proxy=$proxy
 USER root
 RUN echo "deb http://packages.linuxmint.com debian import" | tee /etc/apt/sources.list.d/firefox.list && \
-    apt-get update && apt-get install -y --force-yes --no-install-recommends \
+    apt-get update && apt-get install -y --no-install-recommends \
     # common dev tools
     vim htop git openssh-client zsh tmux wget curl w3m less \
     # common x11 client dependencies
@@ -13,6 +16,6 @@ RUN echo "deb http://packages.linuxmint.com debian import" | tee /etc/apt/source
     ca-certificates \
     # some ides need machine-id info like atom/eclipse
     dbus libxtst6 && dbus-uuidgen > /etc/machine-id && \
-    apt-get clean
+    rm -rf /var/lib/apt/lists/*
 
 USER dev
