@@ -4,7 +4,7 @@ __pycache__/
 code/log/*
 code/checkpoints/*
 code/resources/*
-code/learning/playground.py
+code/baby/playground.py
 
 # docker
 .zsh_history
