@@ -14,8 +14,12 @@ def linear(features, labels, mode):
     if mode == tf.estimator.ModeKeys.PREDICT:
         return tf.estimator.EstimatorSpec(mode=mode, predictions=y)
     # loss sub-graph
-    loss = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
-    loss = tf.losses.compute_weighted_loss(loss, reduction=tf.losses.Reduction.SUM)
+    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
+        logits=logits,
+        labels=labels,
+        name='xentropy')
+    loss = tf.reduce_mean(cross_entropy, name='xentropy_mean')
+
     # train sub-graph
     optimizer = tf.train.GradientDescentOptimizer(0.5)
     global_step = tf.train.get_global_step()
