@@ -1,14 +1,11 @@
 FROM tensorflow/tensorflow:1.4.0-py3
 
-ARG proxy
-ENV http_proxy=$proxy
-ENV https_proxy=$proxy
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # common dev tools
     vim htop git openssh-client zsh tmux wget curl w3m less && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install -i https://pypi.tuna.tsinghua.edu.cn/simple pandas Flask pillow hyperopt pyyaml
+RUN pip install pandas Flask pillow hyperopt pyyaml
 
 # RUN locale-gen en_US.UTF-8
 # ENV LANG en_US.UTF-8
@@ -20,6 +17,6 @@ RUN useradd -m dev && \
 USER dev
 RUN git clone -b personalize git://github.com/teanoon/oh-my-zsh.git ~/.oh-my-zsh && \
     ln -s ~/.oh-my-zsh/templates/zshrc.zsh-template ~/.zshrc && \
-    ln -s ~/.oh-my-zsh/templates/tmux.conf.template ~/.tmux.conf
+    ln -s ~/.oh-my-zsh/templates/tmux.conf.template.2.1 ~/.tmux.conf
 
 WORKDIR /project

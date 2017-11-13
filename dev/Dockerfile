@@ -1,8 +1,5 @@
 FROM babylearning_app:latest
 
-ARG proxy
-ENV http_proxy=$proxy
-ENV https_proxy=$proxy
 USER root
 RUN echo "deb http://packages.linuxmint.com debian import" | tee /etc/apt/sources.list.d/firefox.list && \
     apt-get update && apt-get install -y --no-install-recommends \
