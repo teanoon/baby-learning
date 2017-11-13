@@ -19,6 +19,7 @@ RUN useradd -m dev && \
 
 USER dev
 RUN git clone -b personalize git://github.com/teanoon/oh-my-zsh.git ~/.oh-my-zsh && \
-    ln -s ~/.oh-my-zsh/templates/zshrc.zsh-template ~/.zshrc
+    ln -s ~/.oh-my-zsh/templates/zshrc.zsh-template ~/.zshrc && \
+    ln -s ~/.oh-my-zsh/templates/tmux.conf.template ~/.tmux.conf
 
 WORKDIR /project
