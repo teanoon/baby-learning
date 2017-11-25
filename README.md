@@ -16,10 +16,10 @@
 2. Learn complex algorithm
     * Tweak hyper-paremeters(hyperopt automation)
     * tf.Data
-    * tf.keras
+    * ~~tf.keras~~
     * Weight initialization(L2 regularization)
     * Dropout
-    * Epochs and learning rate decay
+    * ~~Epochs and learning rate decay~~
     * Data augmentation
 3. Start a web server to communicate with the baby.
     * flask api backend
