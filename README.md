@@ -15,7 +15,7 @@
     * RNN
 2. Learn complex algorithm
     * Tweak hyper-paremeters(hyperopt automation)
-    * tf.Data
+    * ~~tf.Data~~
     * ~~tf.keras~~
     * Weight initialization(L2 regularization)
     * Dropout

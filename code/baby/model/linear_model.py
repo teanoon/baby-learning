@@ -9,7 +9,7 @@ def linear(features, labels, mode):
     bias = tf.get_variable(
         name="bias", shape=[10],
         dtype=tf.float32, initializer=tf.zeros_initializer)
-    logits = tf.matmul(features['x'], weight) + bias
+    logits = tf.matmul(features['x_input'], weight) + bias
     y = tf.nn.softmax(logits)
     if mode == tf.estimator.ModeKeys.PREDICT:
         return tf.estimator.EstimatorSpec(mode=mode, predictions=y)
