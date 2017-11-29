@@ -26,4 +26,4 @@ def read(path=""):
     image = 1 - numpy.asarray(image, dtype=numpy.float32) / 255
     image = numpy.dot(image[..., :3], [0.299, 0.587, 0.114])
     image = numpy.asarray(image, dtype=numpy.float32)
-    return numpy.reshape(image, (1, 784))
+    return numpy.reshape(image, (1, 28, 28, 1))

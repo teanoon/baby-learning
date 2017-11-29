@@ -2,12 +2,13 @@ import os
 
 import numpy
 import tensorflow as tf
-import tensorflow.examples.tutorials.mnist.input_data as input_data
+from tensorflow.examples.tutorials.mnist import input_data
 
-import utils.hooks as hooks
-import utils.image_util as image_util
 from definitions import MNIST_DIR
 from definitions import RES_DIR
+from model.cnn_model import cnn
+from utils import hooks
+from utils import image_util
 
 tf.logging.set_verbosity("DEBUG")
 
@@ -25,7 +26,8 @@ def input_fn(features, labels, batch_size=BATCH_SIZE, is_train=True, shuffle=Tru
     iterator_initializer_hook = hooks.IteratorInitializerHook()
 
     def _input_fn():
-        features_placeholder = tf.placeholder(features.dtype, features.shape)
+        _features = numpy.reshape(features, [-1, 28, 28, 1])
+        features_placeholder = tf.placeholder(_features.dtype, _features.shape)
         labels_placeholder = tf.placeholder(labels.dtype, labels.shape)
         dataset = tf.data.Dataset.from_tensor_slices((features_placeholder, labels_placeholder)).batch(batch_size)
         if shuffle:
@@ -37,7 +39,7 @@ def input_fn(features, labels, batch_size=BATCH_SIZE, is_train=True, shuffle=Tru
 
         iterator_initializer_hook.iterator_initializer_func = \
             lambda session: session.run(iterator.initializer, feed_dict={
-                features_placeholder: features,
+                features_placeholder: _features,
                 labels_placeholder: labels
             })
 
@@ -47,16 +49,9 @@ def input_fn(features, labels, batch_size=BATCH_SIZE, is_train=True, shuffle=Tru
 
 
 if __name__ == '__main__':
-    model = tf.keras.models.Sequential()
-    model.add(tf.keras.layers.Dense(64, activation='relu', input_dim=784, name='x'))
-    model.add(tf.keras.layers.Dense(10, activation='softmax', name='output'))
-    model.compile(
-        loss='categorical_crossentropy',
-        optimizer=tf.keras.optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True),
-        metrics=['accuracy'])
-    estimator = tf.keras.estimator.model_to_estimator(model, model_dir=MNIST_DIR)
+    estimator = cnn([None, 28, 28, 1], model_dir=MNIST_DIR)
 
-    if RETRAIN:
+    if not os.path.exists(MNIST_DIR + '/checkpoint'):
         data_sets = input_data.read_data_sets(RES_DIR, one_hot=True)
 
         # train
@@ -93,4 +88,4 @@ if __name__ == '__main__':
     predict_input_fn = tf.estimator.inputs.numpy_input_fn({'x_input': image}, shuffle=False)
     predictions = estimator.predict(predict_input_fn)
     for prediction in predictions:
-        print("Prediction: {}".format(numpy.argmax(prediction['output'])))
+        print("Prediction: {}".format(numpy.argmax(prediction['activation_6'])))

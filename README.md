@@ -11,7 +11,7 @@
 ## Steps:
 0. ~~Mnist sample~~
 1. Learn more modeling
-    * CNN
+    * ~~CNN~~
     * RNN
 2. Learn complex algorithm
     * Tweak hyper-paremeters(hyperopt automation)
