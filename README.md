@@ -20,7 +20,7 @@
     * Weight initialization(L2 regularization)
     * ~~Dropout~~
     * ~~Epochs and learning rate decay~~
-    * Data augmentation
+    * ~~Data augmentation~~
 3. Start a web server to communicate with the baby:
     * Flask api backend
     * Serving with Tensorflow Serving
