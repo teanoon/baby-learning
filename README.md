@@ -27,7 +27,7 @@
     * Wechat app as the client
 4. Production-ready:
     * Log analytics(learning rate, accuracy per epoch)
-    * Monitor
+    * Tensorboard
     * Visualize
     * Embedding
     * GPU computing
