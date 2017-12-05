@@ -12,7 +12,9 @@
 0. ~~Mnist sample~~
 1. Learn more modeling:
     * ~~CNN~~
-    * RNN
+    * LSTM
+    * Seq2Seq
+    * Embedding
 2. Learn complex algorithm:
     * Tweak hyper-parameters(hyperopt automation)
     * ~~tf.Data~~
@@ -26,10 +28,7 @@
     * Serving with Tensorflow Serving
     * Wechat app as the client
 4. Production-ready:
-    * Log analytics(learning rate, ~~accuracy per epoch~~)
-    * Tensorboard
-    * Visualize
-    * Embedding
+    * Tensorboard(~~accuracy per epoch~~)
     * GPU computing
     * XLA
     * Google cloud ML engine
