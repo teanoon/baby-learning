@@ -1,4 +1,3 @@
-import os
 from os.path import join
 
 import numpy
@@ -11,13 +10,12 @@ from babylearning.python.model import linear
 from babylearning.python.utils import image
 from babylearning.python.utils.hooks import IteratorInitializerHook
 
-
 tf.logging.set_verbosity("DEBUG")
 
 TRAIN_SIZE = 55000
 VALIDATION_SIZE = 5000
 TEST_SIZE = 10000
-EPOCHS_SIZE = 20
+EPOCHS_SIZE = 5
 BATCH_SIZE = 100
 SHUFFLE_BUFFER_SIZE = 10000
 
@@ -53,42 +51,43 @@ def input_fn(features, labels, batch_size=BATCH_SIZE, is_train=True):
 
 if __name__ == '__main__':
     estimator = linear.keras(784, model_dir=MNIST_DIR)
+    data_sets = input_data.read_data_sets(RES_DIR, one_hot=True)
 
-    if not os.path.exists(MNIST_DIR + '/model.ckpt-1.index'):
-        data_sets = input_data.read_data_sets(RES_DIR, one_hot=True)
+    # train
+    train_input_fn, train_iterator_hook = input_fn(
+        numpy.asarray(data_sets.train.images, dtype=numpy.float32),
+        numpy.asarray(data_sets.train.labels, dtype=numpy.float32))
 
-        for _ in range(EPOCHS_SIZE):
-            # train
-            train_input_fn, train_iterator_hook = input_fn(
-                numpy.asarray(data_sets.train.images, dtype=numpy.float32),
-                numpy.asarray(data_sets.train.labels, dtype=numpy.float32))
-            estimator.train(
-                input_fn=train_input_fn,
-                hooks=[train_iterator_hook],
-                steps=TRAIN_SIZE/BATCH_SIZE)
+    # eval
+    eval_input_fn, eval_iterator_hook = input_fn(
+        numpy.asarray(data_sets.validation.images, dtype=numpy.float32),
+        numpy.asarray(data_sets.validation.labels, dtype=numpy.float32),
+        is_train=False)
 
-            # eval
-            validation_input_fn, validation_iterator_hook = input_fn(
-                numpy.asarray(data_sets.validation.images, dtype=numpy.float32),
-                numpy.asarray(data_sets.validation.labels, dtype=numpy.float32),
-                is_train=False)
-            evaluate = estimator.evaluate(
-                input_fn=validation_input_fn,
-                hooks=[validation_iterator_hook])
-            print("eval metrics: {}".format(evaluate))
+    # test
+    test_input_fn, test_iterator_hook = input_fn(
+        numpy.asarray(data_sets.test.images, dtype=numpy.float32),
+        numpy.asarray(data_sets.test.labels, dtype=numpy.float32),
+        is_train=False)
 
-        # test
-        test_input_fn, test_iterator_hook = input_fn(
-            numpy.asarray(data_sets.test.images, dtype=numpy.float32),
-            numpy.asarray(data_sets.test.labels, dtype=numpy.float32),
-            is_train=False)
-        test = estimator.evaluate(
-            input_fn=test_input_fn,
-            hooks=[test_iterator_hook])
-        print("test metrics: {}".format(test))
+    for _ in range(EPOCHS_SIZE):
+        step_per_epoch = TRAIN_SIZE / BATCH_SIZE
+        estimator.train(
+            train_input_fn,
+            hooks=[train_iterator_hook],
+            steps=step_per_epoch)
+
+        estimator.evaluate(
+            eval_input_fn,
+            hooks=[eval_iterator_hook])
+
+    test = estimator.evaluate(
+        input_fn=test_input_fn,
+        hooks=[test_iterator_hook])
+    print("test metrics: {}".format(test))
 
     # predict
-    image = image.read('resources/8.jpg')
+    image = image.read(RES_DIR + '/8.jpg')
     image = numpy.reshape(image, [1, 784])
     predict_input_fn = tf.estimator.inputs.numpy_input_fn({'x_input': image}, shuffle=False)
     predictions = estimator.predict(predict_input_fn)
