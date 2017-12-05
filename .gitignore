@@ -11,4 +11,7 @@ code/baby/playground.py
 docker-compose-dev.yml
 db
 
+# ide
+.PyCharmCE*
+
 !.keep

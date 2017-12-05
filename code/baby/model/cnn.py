@@ -5,7 +5,7 @@ from tensorflow.python.keras.optimizers import RMSprop
 
 
 # Create model of CNN
-def cnn(input_shape, model_dir=None, num_classes=10):
+def keras(input_shape, model_dir=None, num_classes=10):
     model = Sequential()
     model.add(Conv2D(32, (3, 3), padding='same', input_shape=input_shape[1:], name='x'))
     model.add(Activation('relu'))
@@ -26,7 +26,7 @@ def cnn(input_shape, model_dir=None, num_classes=10):
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
     model.add(Dense(num_classes))
-    model.add(Activation('softmax'))
+    model.add(Activation('softmax', name='output'))
 
     model.compile(
         loss='categorical_crossentropy',

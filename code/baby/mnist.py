@@ -7,9 +7,9 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 from definitions import CKPT_DIR
 from definitions import RES_DIR
-from model.cnn_model import cnn
-from utils import hooks
+from model import linear
 from utils import image
+from utils.hooks import IteratorInitializerHook
 
 tf.logging.set_verbosity("DEBUG")
 
@@ -26,17 +26,16 @@ MNIST_DIR = join(CKPT_DIR, 'mnist4')
 
 
 def input_fn(features, labels, batch_size=BATCH_SIZE, is_train=True):
-    iterator_initializer_hook = hooks.IteratorInitializerHook()
+    iterator_initializer_hook = IteratorInitializerHook()
 
     def _input_fn():
-        _features, _labels = image.augment(numpy.reshape(features, [-1, 28, 28, 1]), labels, multiply=3)
+        _features, _labels = features, labels
         features_placeholder = tf.placeholder(_features.dtype, _features.shape)
         labels_placeholder = tf.placeholder(_labels.dtype, _labels.shape)
         dataset = tf.data.Dataset.from_tensor_slices((features_placeholder, labels_placeholder))\
-            .batch(batch_size)\
-            .shuffle(SHUFFLE_BUFFER_SIZE)
+            .batch(batch_size)
         if is_train:
-            dataset = dataset.repeat()
+            dataset = dataset.shuffle(SHUFFLE_BUFFER_SIZE).repeat()
         iterator = dataset.make_initializable_iterator()
         next_features, next_labels = iterator.get_next()
 
@@ -52,29 +51,30 @@ def input_fn(features, labels, batch_size=BATCH_SIZE, is_train=True):
 
 
 if __name__ == '__main__':
-    estimator = cnn([None, 28, 28, 1], model_dir=MNIST_DIR)
+    estimator = linear.keras(784, model_dir=MNIST_DIR)
 
     if not os.path.exists(MNIST_DIR + '/model.ckpt-1.index'):
         data_sets = input_data.read_data_sets(RES_DIR, one_hot=True)
 
-        # train
-        train_input_fn, train_iterator_hook = input_fn(
-            numpy.asarray(data_sets.train.images, dtype=numpy.float32),
-            numpy.asarray(data_sets.train.labels, dtype=numpy.float32))
-        estimator.train(
-            input_fn=train_input_fn,
-            hooks=[train_iterator_hook],
-            steps=TRAIN_SIZE/BATCH_SIZE*EPOCHS_SIZE)
+        for _ in range(EPOCHS_SIZE):
+            # train
+            train_input_fn, train_iterator_hook = input_fn(
+                numpy.asarray(data_sets.train.images, dtype=numpy.float32),
+                numpy.asarray(data_sets.train.labels, dtype=numpy.float32))
+            estimator.train(
+                input_fn=train_input_fn,
+                hooks=[train_iterator_hook],
+                steps=TRAIN_SIZE/BATCH_SIZE)
 
-        # eval
-        # validation_input_fn, validation_iterator_hook = input_fn(
-        #     numpy.asarray(data_sets.validation.images, dtype=numpy.float32),
-        #     numpy.asarray(data_sets.validation.labels, dtype=numpy.float32),
-        #     is_train=False)
-        # evaluate = estimator.evaluate(
-        #     input_fn=validation_input_fn,
-        #     hooks=[validation_iterator_hook])
-        # print("eval metrics: {}".format(evaluate))
+            # eval
+            validation_input_fn, validation_iterator_hook = input_fn(
+                numpy.asarray(data_sets.validation.images, dtype=numpy.float32),
+                numpy.asarray(data_sets.validation.labels, dtype=numpy.float32),
+                is_train=False)
+            evaluate = estimator.evaluate(
+                input_fn=validation_input_fn,
+                hooks=[validation_iterator_hook])
+            print("eval metrics: {}".format(evaluate))
 
         # test
         test_input_fn, test_iterator_hook = input_fn(
@@ -88,7 +88,8 @@ if __name__ == '__main__':
 
     # predict
     image = image.read('../resources/8.jpg')
+    image = numpy.reshape(image, [1, 784])
     predict_input_fn = tf.estimator.inputs.numpy_input_fn({'x_input': image}, shuffle=False)
     predictions = estimator.predict(predict_input_fn)
     for prediction in predictions:
-        print("Prediction: {}".format(numpy.argmax(prediction['activation_6'])))
+        print("Prediction: {}".format(numpy.argmax(prediction['output'])))

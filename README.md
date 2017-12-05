@@ -26,7 +26,7 @@
     * Serving with Tensorflow Serving
     * Wechat app as the client
 4. Production-ready:
-    * Log analytics(learning rate, accuracy per epoch)
+    * Log analytics(learning rate, ~~accuracy per epoch~~)
     * Tensorboard
     * Visualize
     * Embedding

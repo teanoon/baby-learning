@@ -4,7 +4,7 @@ from tensorflow.python.keras.models import Sequential
 from tensorflow.python.keras.optimizers import SGD
 
 
-def linear(features, labels, mode):
+def simple(features, labels, mode):
     # model
     weight = tf.get_variable(
         name="weight", shape=[784, 10],
@@ -32,7 +32,7 @@ def linear(features, labels, mode):
     return tf.estimator.EstimatorSpec(mode=mode, predictions=y, loss=loss, train_op=train_op)
 
 
-def keras_linear(input_dim, model_dir):
+def keras(input_dim, model_dir=None):
     model = Sequential()
     model.add(Dense(64, activation='relu', input_dim=input_dim, name='x'))
     model.add(Dense(10, activation='softmax', name='output'))
