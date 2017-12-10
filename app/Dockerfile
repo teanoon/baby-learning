@@ -5,7 +5,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     vim htop git openssh-client zsh tmux wget curl w3m less && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install pandas Flask pillow hyperopt pyyaml
+RUN pip install \
+    pandas Flask pillow hyperopt pyyaml \
+    # fix hyperopt/hyperopt/issues/325
+    networkx==1.11
 
 RUN useradd -m dev && \
     chsh -s /bin/zsh dev && \

@@ -16,7 +16,7 @@
     * Seq2Seq
     * Embedding
 2. Learn complex algorithm:
-    * Tweak hyper-parameters(hyperopt automation)
+    * ~~Tweak hyper-parameters(hyperopt automation, parameterize)~~
     * ~~tf.Data~~
     * ~~tf.keras~~
     * Weight initialization(L2 regularization)

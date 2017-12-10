@@ -32,12 +32,12 @@ def simple(features, labels, mode):
     return tf.estimator.EstimatorSpec(mode=mode, predictions=y, loss=loss, train_op=train_op)
 
 
-def keras(input_dim, model_dir=None):
+def keras(input_dim, learning_rate=1e-2, momentum=0.9, decay=1e-6, model_dir=None):
     model = Sequential()
     model.add(Dense(64, activation='relu', input_dim=input_dim, name='x'))
     model.add(Dense(10, activation='softmax', name='output'))
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=SGD(lr=0.01, momentum=0.9, decay=1e-6, nesterov=True),
+        optimizer=SGD(lr=learning_rate, momentum=momentum, decay=decay, nesterov=True),
         metrics=['accuracy'])
     return tf.keras.estimator.model_to_estimator(model, model_dir=model_dir)
