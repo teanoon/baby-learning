@@ -1,21 +1,50 @@
 version: '3'
 services:
-  mongo:
-    image: mongo:3.2
+  app: &base
+    image: teanoon/cloud-sdk
+    entrypoint: make
+    working_dir: /code
+    tty: true
+    environment:
+      https_proxy: http://172.98.0.5:8118
+      # gcloud config
+      BUCKET_NAME: delta-suprstate-168507-mlengine
+      REGION: us-central1
+      # job config
+      MODEL_NAME: mnist
+      RUNTIME_VERSION: 1.4
+      JOB_SUFFIX: single_14
+      INFERENCE_SUFFIX: inference_1
+      # verison config
+      VERSION: v2
     volumes:
-      - ./db/mongo:/data/db
-  app:
-    build: app
-    command: 'python baby-learning/server/main.py'
+      - .:/code
+      - .cache:/home/dev/.cache
+      - .config:/home/dev/.config
+      - .local:/home/dev/.local
+  serving:
+    <<: *base
+    image: teanoon/tensorflow-serving
+    networks:
+      default:
+        ipv4_address: 172.20.0.99
+    command: serving
+  dev:
+    image: teanoon/python-dev:2.7
+    command: /home/dev/pycharm/bin/pycharm.sh
+    environment:
+      https_proxy: http://172.98.0.5:8118
+      DISPLAY: $DISPLAY
+      BUCKET_NAME: delta-suprstate-168507-mlengine
+      REGION: us-central1
+    extra_hosts:
+      - 'serving:172.20.0.99'
     volumes:
-      - ./:/project
-      - ~/.ssh:/home/dev/.ssh
-      - ~/.gitconfig:/home/dev/.gitconfig
-      - .zsh_history:/home/dev/.zsh_history
-    ports:
-      # tensorboard
-      - 7800
-      # flask
-      - 7000
-    links:
-      - mongo
+      - .:/code
+      - .cache:/home/dev/.cache
+      - .config:/home/dev/.config
+      - .local:/home/dev/.local
+      - .PyCharmCE2017.3:/home/dev/.PyCharmCE2017.3
+      - .PyCharm.java:/home/dev/.java
+      - /boxes/pycharm:/home/dev/pycharm
+      - /tmp/.X11-unix:/tmp/.X11-unix

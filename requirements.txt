@@ -1,0 +1,7 @@
+google-api-python-client
+grpcio
+hyperopt
+networkx==1.11
+pillow
+tensorflow-serving-api
+tf-nightly

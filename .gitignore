@@ -1,17 +1,23 @@
 # codes
+.PyCharm.java/
+.PyCharmCE2017.3/
 .idea/
+trainer/playground.py
+.zsh_history
+
+# config
 __pycache__/
-babylearning/log/*
-babylearning/checkpoints/*
-babylearning/resources/*
-babylearning/python/playground.py
+*.pyc
+.config/
+.cache/
+.local/
+
+# temp
+output/
+data/
 
 # docker
-.zsh_history
+.env
 docker-compose-dev.yml
-db
-
-# ide
-.PyCharmCE*
 
 !.keep
