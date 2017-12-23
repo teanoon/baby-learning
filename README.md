@@ -2,8 +2,7 @@
 
 ## Setup
 1. Install docker && docker-compose
-2. `> docker-compose up`
-3. POST normal images to http://0.0.0.0:5000/recognize with 'multipart/form-data' and 'file' field to get hand writing recognition.
+2. > make
 
 ## Theories
 1. [Neural network and deep learning](http://neuralnetworksanddeeplearning.com/)
@@ -27,8 +26,8 @@
     * Flask api backend
     * Serving with Tensorflow Serving
     * Wechat app as the client
-4. Production-ready:
+4. Production-ready(gcloud):
     * Tensorboard(~~accuracy per epoch~~)
-    * GPU computing
-    * XLA
-    * Google cloud ML engine
+    * ~~Basic workflow~~
+    * Scalable/Devices management
+    * Hyperparameters optimization
