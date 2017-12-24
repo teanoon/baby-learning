@@ -25,9 +25,6 @@ services:
   serving:
     <<: *base
     image: teanoon/tensorflow-serving
-    networks:
-      default:
-        ipv4_address: 172.20.0.99
     command: serving
   dev:
     image: teanoon/python-dev:2.7
@@ -37,8 +34,6 @@ services:
       DISPLAY: $DISPLAY
       BUCKET_NAME: delta-suprstate-168507-mlengine
       REGION: us-central1
-    extra_hosts:
-      - 'serving:172.20.0.99'
     volumes:
       - .:/code
       - .cache:/home/dev/.cache
@@ -48,3 +43,5 @@ services:
       - .PyCharm.java:/home/dev/.java
       - /boxes/pycharm:/home/dev/pycharm
       - /tmp/.X11-unix:/tmp/.X11-unix
+    links:
+      - serving
