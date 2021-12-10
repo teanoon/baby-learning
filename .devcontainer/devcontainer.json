@@ -7,6 +7,11 @@
     "context": ".."
   },
 
+  "containerEnv": {
+    "http_proxy": "http://172.99.0.1:8118",
+    "https_proxy": "http://172.99.0.1:8118"
+  },
+
   // Set *default* container specific settings.json values on container create.
   "settings": {
     "python.defaultInterpreterPath": "/usr/local/bin/python",
