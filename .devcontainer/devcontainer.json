@@ -29,6 +29,8 @@
 
   "mounts": [
     "source=vscode-python-extensions,target=/home/dev/.vscode-server/extensions,type=volume",
+    "source=vscode-python-packages,target=/home/dev/.local/lib/python3.8/site-packages,type=volume",
+    "source=vscode-tensorflow-datasets,target=/home/dev/.keras,type=volume",
   ],
 
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
